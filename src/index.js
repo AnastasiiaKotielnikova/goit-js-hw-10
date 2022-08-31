@@ -1,70 +1,113 @@
 import './css/styles.css';
-import debounce from 'lodash.debounce';
 import { Notify } from 'notiflix/build/notiflix-notify-aio';
+import debounce from 'lodash.debounce';
+
 import { fetchCountries } from './fetchCountries';
 
 const DEBOUNCE_DELAY = 300;
 
-refs = {
-    countryInfo: document.queryCommandValue('.country-info'),
-    countryList: document.querySelector('.country-list'),
-    searchInput: document.querySelector('#search-box')
-}
+const refs = {
+  countryList: document.querySelector('.country-list'),
+  countryInfo: document.querySelector('.country-info'),
+  countryInput: document.querySelector('#search-box'),
+};
 
-refs.searchInput.addEventListener('input', debounce(onSearch, DEBOUNCE_DELAY));
+const getCountryName = e => e.target.value.trim().toLowerCase();
 
-function onSearch() {
-    const getCountry = refs.searchInput.value.trim().toLowerCase();
-
-    if(!getCountry) {
-     clearInfo();
-     clearList();
-     return;
-    
+const renderSearchResultMarkup = countriesArr => {
+  if (countriesArr.length > 10) {
+    return Promise.reject('too many');
   }
-    fetchCountries(getCountry)
-        .then(renderCountries)
-        .catch(newError);
-}
+
+  if (countriesArr.length > 1) {
+    return {
+      type: 'list',
+      markup: countriesArr
+        .map(
+          country =>
+            `<li><span><img src=${country.flags.svg} alt=""></span>${country.name.official}</li>`
+        )
+        .join(''),
+    };
+  }
+  if (countriesArr.length === 1) {
+    const country = countriesArr[0];
+    return {
+      type: 'details',
+      markup: `
+    <h2><span><img src=${country.flags.svg} alt=""></span>${
+        country.name.official
+      }</h2>
+    <p>Capital: ${country.capital}</p>
+    <p>Population: ${country.population}</p>
+    <p>Languages: ${Object.values(country.languages)}</p>    
+    `,
+    };
+  }
+};
+
+const clearResult = () => {
+  refs.countryInfo.innerHTML = '';
+  refs.countryList.innerHTML = '';
+};
+
+const addSearchResult = searchResultMarkup => {
+  clearResult();
+
+  if (searchResultMarkup.type === 'list') {
+    refs.countryList.insertAdjacentHTML(
+      'beforeend',
+      searchResultMarkup.markup
+    );
+  } else if (searchResultMarkup.type === 'details') {
+    refs.countryInfo.insertAdjacentHTML(
+      'beforeend',
+      searchResultMarkup.markup
+    );
+  }
+};
+
+const alarmToManyCountries = () => {
+  clearResult();
+  Notify.info('Too many matches found. Please enter a more specific name.');
+};
+
+const alarmNotFound = () => {
+  clearResult();
+  Notify.failure('Oops, there is no country with that name');
+};
+
+const errorsHandler = error => {
+  if (error === 'not found') {
+    alarmNotFound();
+    return;
+  }
+  if (error === 'too many') {
+    alarmToManyCountries();
+    return;
+  }
+  console.log(error);
+};
+
+const doSearch = e => {
+  const searchedCountry = getCountryName(e);
+
+  if (searchedCountry === '') {
+    clearResult();
+    return;
+  }
+
+  fetchCountries(searchedCountry)
+    .then(renderSearchResultMarkup)
+    .then(addSearchResult)
+    .catch(errorsHandler);
+};
+
+refs.countryInput.addEventListener(
+  'input',
+  debounce(doSearch, DEBOUNCE_DELAY)
+);
 
 
-function renderCountries(countries) {
-    if (countries.length === 1) {
-        clearList();
-        const markup = countries.map(country => {
-            return `<img src=${country.flags.svg} alt="" width="30"><span>${country.name.official}</span>
-        <p>Capital: ${country.capital}</p>
-        <p>Population: ${country.population}</p>
-        <p>Languages: ${Object.values(country.languages)}</p>`
-        })
-            .join(``);
-        refs.countryInfo.innerHTML = markup;
-    }
-    if(countries.length >= 2  && countries.length <= 10) {
-      clearInfo();
-      const markup = countries.map(country => {
-        return `<li>
-        <img src=${country.flags.svg} alt="" width="30"> <span>${country.name.official}</span></li>`
-      })
-            .join(``);
-        refs.countryList.innerHTML = markup;
-    }
-    if (countries.length > 10) {
-        clearInfo();
-        clearList();
-        return Notify.info(`Too many matches found. Please enter a more specific name.`);
-    }
-}
 
-function newError() {
-    clearList();
-    clearInfo();
-    Notify.failure("Oops, there is no country with that name");
-}
 
-function clearList() {
-  refs.countryList.innerHTML = ``;
-}
-function clearInfo() {
-  refs.countryInfo.innerHTML = ``;
-}
