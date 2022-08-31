@@ -13,8 +13,8 @@ refs = {
 
 refs.searchInput.addEventListener('input', debounce(onSearch, DEBOUNCE_DELAY));
 
-function onSearch(e) {
-    const getCountry = e.target.value.trim().toLowerCase();
+function onSearch() {
+    const getCountry = refs.searchInput.value.trim().toLowerCase();
 
     if(!getCountry) {
      clearInfo();
@@ -32,10 +32,10 @@ function renderCountries(countries) {
     if (countries.length === 1) {
         clearList();
         const markup = countries.map(country => {
-            return `<img src="${country.flags.svg}" width="30"><span>${country.name}</span>
-        <p><b>Capital</b>: ${country.capital}</p>
-        <p><b>Population</b>: ${country.population}</p>
-        <p><b>Languages </b>: ${country.languages.map(data => data.name).join(`, `)}</p>`
+            return `<img src=${country.flags.svg} alt="" width="30"><span>${country.name.official}</span>
+        <p>Capital: ${country.capital}</p>
+        <p>Population: ${country.population}</p>
+        <p>Languages: ${Object.values(country.languages)}</p>`
         })
             .join(``);
         refs.countryInfo.innerHTML = markup;
@@ -44,7 +44,7 @@ function renderCountries(countries) {
       clearInfo();
       const markup = countries.map(country => {
         return `<li>
-        <img src="${country.flags.svg}" width="30"> <span>${country.name}</span></li>`
+        <img src=${country.flags.svg} alt="" width="30"> <span>${country.name.official}</span></li>`
       })
             .join(``);
         refs.countryList.innerHTML = markup;
